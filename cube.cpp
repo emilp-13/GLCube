@@ -27,6 +27,8 @@ Cube::Cube()
     surfaceFormat.setVersion(4, 4);
     surfaceFormat.setProfile(QSurfaceFormat::CompatibilityProfile);
     surfaceFormat.setRenderableType(QSurfaceFormat::OpenGL);
+    surfaceFormat.setSamples(4);
+    surfaceFormat.setSwapInterval(1);
 
     this->m_pContext = new QOpenGLContext(this);
     this->m_pContext->setFormat(surfaceFormat);
@@ -34,17 +36,14 @@ Cube::Cube()
 
     this->m_pContext->makeCurrent(this);
 
-    this->m_mtxView.setToIdentity();
+    this->m_mtxRotation.setToIdentity();
     this->m_mtxViewProj.setToIdentity();
     this->m_mtxWorldViewProj.setToIdentity();
+
+    connect(this, SIGNAL(frameSwapped()), this, SLOT(updateGLScene()));
 }
 
 Cube::~Cube()
-{
-
-}
-
-void Cube::updateGLScene()
 {
     this->makeCurrent();
 
@@ -58,6 +57,15 @@ void Cube::updateGLScene()
     delete this->m_pColorSP;
 
     delete this->m_pContext;
+}
+
+void Cube::updateGLScene()
+{
+    float rotationAngle = 2.0f;
+    this->m_mtxRotation.rotate(rotationAngle,
+                               QVector3D(1.0f, 1.0f, 0.0f));
+
+    this->update();
 }
 
 void Cube::initializeGL()
@@ -76,9 +84,6 @@ void Cube::initializeGL()
         this->close();
     }
 
-    this->m_mtxView.lookAt(QVector3D(0.0f, 0.0f, -1.0f), QVector3D(0.0f, 0.0f, 0.0f),
-                           QVector3D(0.0f, 1.0f, 0.0f));
-
     this->glEnable(GL_DEPTH_TEST);
     this->glDepthFunc(GL_LESS);
 
@@ -87,12 +92,15 @@ void Cube::initializeGL()
 
 void Cube::paintGL()
 {
+    this->m_Timer.start();
     this->glClearColor(0.55f, 0.55f, 0.55f, 1.0f);
     this->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    QMatrix4x4 mtxTranslate;
+    mtxTranslate.translate(0.0f, 0.0f, -50.0f);
     QMatrix4x4 mtxWorld;
     mtxWorld.setToIdentity();
-    mtxWorld.translate(0.0f, 0.0f, 50.0f);
+    mtxWorld = mtxTranslate * this->m_mtxRotation;
 
     this->m_mtxWorldViewProj = this->m_mtxViewProj * mtxWorld;
 
@@ -118,22 +126,22 @@ void Cube::resizeGL(int width, int height)
     mtxProj.perspective(45.0f, aspectRatio,
                         0.01f, 1000.0f);
 
-    this->m_mtxViewProj = mtxProj * this->m_mtxView;
+    this->m_mtxViewProj = mtxProj * this->m_Camera.getViewMatrix();
 }
 
 void Cube::buildBuffers()
 {
     Vertex cubeVertexData[] =
     {
-        { QVector3D(-10.0f, -10.0f, +5.0f), QVector4D(1.0f, 0.0f, 0.0f, 1.0f) },
-        { QVector3D(-10.0f, +10.0f, +5.0f), QVector4D(0.0f, 0.0f, 0.0f, 1.0f) },
-        { QVector3D(+10.0f, +10.0f, +5.0f), QVector4D(1.0f, 1.0f, 1.0f, 1.0f) },
-        { QVector3D(+10.0f, -10.0f, +5.0f), QVector4D(0.0f, 1.0f, 0.0f, 1.0f) },
+        { QVector3D(-10.0f, -10.0f, +10.0f), QVector4D(1.0f, 0.0f, 0.0f, 1.0f) },
+        { QVector3D(-10.0f, +10.0f, +10.0f), QVector4D(0.0f, 0.0f, 0.0f, 1.0f) },
+        { QVector3D(+10.0f, +10.0f, +10.0f), QVector4D(1.0f, 1.0f, 1.0f, 1.0f) },
+        { QVector3D(+10.0f, -10.0f, +10.0f), QVector4D(0.0f, 1.0f, 0.0f, 1.0f) },
 
-        { QVector3D(-10.0f, -10.0f, -5.0f), QVector4D(1.0f, 0.0f, 1.0f, 1.0f) },
-        { QVector3D(-10.0f, +10.0f, -5.0f), QVector4D(0.0f, 0.0f, 1.0f, 1.0f) },
-        { QVector3D(+10.0f, +10.0f, -5.0f), QVector4D(1.0f, 1.0f, 0.0f, 1.0f) },
-        { QVector3D(+10.0f, -10.0f, -5.0f), QVector4D(0.0f, 1.0f, 1.0f, 1.0f) },
+        { QVector3D(-10.0f, -10.0f, -10.0f), QVector4D(1.0f, 0.0f, 1.0f, 1.0f) },
+        { QVector3D(-10.0f, +10.0f, -10.0f), QVector4D(0.0f, 0.0f, 1.0f, 1.0f) },
+        { QVector3D(+10.0f, +10.0f, -10.0f), QVector4D(1.0f, 1.0f, 0.0f, 1.0f) },
+        { QVector3D(+10.0f, -10.0f, -10.0f), QVector4D(0.0f, 1.0f, 1.0f, 1.0f) },
     };
 
     unsigned short cubeIndices[] =
@@ -151,7 +159,7 @@ void Cube::buildBuffers()
         3, 6, 2,
         3, 7, 6,
         // top plane
-        1, 5, 5,
+        1, 6, 5,
         1, 2, 6,
         // bottom plane
         4, 3, 0,

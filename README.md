@@ -1,2 +1,4 @@
 # GLCube
-Rendering a cube
+Rendering a rotating colored cube.
+
+Emil Petrov

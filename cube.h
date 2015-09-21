@@ -12,6 +12,8 @@
 #include <QElapsedTimer>
 #include <QMatrix4x4>
 
+#include "camera.h"
+
 class Cube : public QOpenGLWindow, protected QOpenGLFunctions
 {
     Q_OBJECT
@@ -29,6 +31,7 @@ protected:
     void resizeGL(int width, int height);
 
 private:
+    // ATTRIBUTES >>
     QOpenGLContext              *m_pContext;
     QOpenGLVertexArrayObject    m_CubeVAO;
     QOpenGLBuffer               *m_pCubeVB;
@@ -37,9 +40,13 @@ private:
     QOpenGLShader               *m_pColorFS;
     QOpenGLShaderProgram        *m_pColorSP;
 
-    QMatrix4x4      m_mtxView;
+    QElapsedTimer   m_Timer;
+    Camera          m_Camera;
+
+    QMatrix4x4      m_mtxRotation;
     QMatrix4x4      m_mtxViewProj;
     QMatrix4x4      m_mtxWorldViewProj;
+    // << ATTRIBUTES
 
     void buildBuffers();
     bool manageShaders();
