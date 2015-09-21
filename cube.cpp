@@ -4,6 +4,7 @@
 #include <QSurface>
 #include <QVector3D>
 #include <QVector4D>
+#include <QMessageBox>
 #include <QDebug>
 
 using namespace std;
@@ -45,7 +46,18 @@ Cube::~Cube()
 
 void Cube::updateGLScene()
 {
+    this->makeCurrent();
 
+    this->m_pCubeIB->destroy();
+    this->m_pCubeVB->destroy();
+
+    delete this->m_pCubeIB;
+    delete this->m_pCubeVB;
+    delete this->m_pColorVS;
+    delete this->m_pColorFS;
+    delete this->m_pColorSP;
+
+    delete this->m_pContext;
 }
 
 void Cube::initializeGL()
@@ -56,17 +68,16 @@ void Cube::initializeGL()
 
     this->buildBuffers();
 
-    this->manageShaders();
+    if(this->manageShaders() == false)
+    {
+        QMessageBox::information(nullptr, "Error", "An error occured while "
+                                                   "loading resources!");
 
-    this->m_mtxView.lookAt(QVector3D(0.0f, 0.0f, 2.0f), QVector3D(0.0f, 0.0f, 0.0f),
+        this->close();
+    }
+
+    this->m_mtxView.lookAt(QVector3D(0.0f, 0.0f, -1.0f), QVector3D(0.0f, 0.0f, 0.0f),
                            QVector3D(0.0f, 1.0f, 0.0f));
-
-    QMatrix4x4 mtxProj;
-    mtxProj.setToIdentity();
-    float aspectRatio = (float)this->width() / (float)this->height();
-    mtxProj.perspective(45.0f, aspectRatio,
-                        0.01f, 100.0f);
-    this->m_mtxViewProj = mtxProj * this->m_mtxView;
 
     this->glEnable(GL_DEPTH_TEST);
     this->glDepthFunc(GL_LESS);
@@ -81,7 +92,7 @@ void Cube::paintGL()
 
     QMatrix4x4 mtxWorld;
     mtxWorld.setToIdentity();
-    mtxWorld.translate(320.0f, 240.0f, 0.0f);
+    mtxWorld.translate(0.0f, 0.0f, 50.0f);
 
     this->m_mtxWorldViewProj = this->m_mtxViewProj * mtxWorld;
 
@@ -90,7 +101,7 @@ void Cube::paintGL()
     this->m_CubeVAO.bind();
 
     this->glUniformMatrix4fv(0, 1, GL_FALSE, this->m_mtxWorldViewProj.data());
-    this->glDrawElements(GL_TRIANGLES, 36, GL_SHORT, 0);
+    this->glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_SHORT, 0);
 
     this->m_CubeVAO.release();
 
@@ -105,7 +116,8 @@ void Cube::resizeGL(int width, int height)
     mtxProj.setToIdentity();
     float aspectRatio = (float)width / (float)height;
     mtxProj.perspective(45.0f, aspectRatio,
-                        0.01f, 100.0f);
+                        0.01f, 1000.0f);
+
     this->m_mtxViewProj = mtxProj * this->m_mtxView;
 }
 
@@ -113,37 +125,37 @@ void Cube::buildBuffers()
 {
     Vertex cubeVertexData[] =
     {
-        { QVector3D(+10.0f, +10.0f, +10.0f), QVector4D(1.0f, 0.0f, 0.0f, 1.0f) },
-        { QVector3D(-10.0f, +10.0f, +10.0f), QVector4D(0.0f, 0.0f, 0.0f, 1.0f) },
-        { QVector3D(-10.0f, -10.0f, +10.0f), QVector4D(1.0f, 1.0f, 1.0f, 1.0f) },
-        { QVector3D(+10.0f, -10.0f, +10.0f), QVector4D(0.0f, 1.0f, 0.0f, 1.0f) },
+        { QVector3D(-10.0f, -10.0f, +5.0f), QVector4D(1.0f, 0.0f, 0.0f, 1.0f) },
+        { QVector3D(-10.0f, +10.0f, +5.0f), QVector4D(0.0f, 0.0f, 0.0f, 1.0f) },
+        { QVector3D(+10.0f, +10.0f, +5.0f), QVector4D(1.0f, 1.0f, 1.0f, 1.0f) },
+        { QVector3D(+10.0f, -10.0f, +5.0f), QVector4D(0.0f, 1.0f, 0.0f, 1.0f) },
 
-        { QVector3D(+10.0f, -10.0f, -10.0f), QVector4D(1.0f, 0.0f, 1.0f, 1.0f) },
-        { QVector3D(-10.0f, -10.0f, -10.0f), QVector4D(0.0f, 0.0f, 1.0f, 1.0f) },
-        { QVector3D(-10.0f, +10.0f, -10.0f), QVector4D(1.0f, 1.0f, 0.0f, 1.0f) },
-        { QVector3D(+10.0f, +10.0f, -10.0f), QVector4D(0.0f, 1.0f, 1.0f, 1.0f) },
+        { QVector3D(-10.0f, -10.0f, -5.0f), QVector4D(1.0f, 0.0f, 1.0f, 1.0f) },
+        { QVector3D(-10.0f, +10.0f, -5.0f), QVector4D(0.0f, 0.0f, 1.0f, 1.0f) },
+        { QVector3D(+10.0f, +10.0f, -5.0f), QVector4D(1.0f, 1.0f, 0.0f, 1.0f) },
+        { QVector3D(+10.0f, -10.0f, -5.0f), QVector4D(0.0f, 1.0f, 1.0f, 1.0f) },
     };
 
-    short cubeIndices[] =
+    unsigned short cubeIndices[] =
     {
         // front plane
-        0, 1, 2,
-        2, 3, 0,
+        0, 2, 1,
+        0, 3, 2,
         // back plane
+        7, 5, 6,
         7, 4, 5,
-        5, 6, 7,
         // left plane
-        6, 5, 2,
-        2, 1, 6,
+        4, 1, 5,
+        4, 0, 1,
         // right plane
-        7, 0, 3,
-        3, 4, 7,
+        3, 6, 2,
+        3, 7, 6,
         // top plane
-        7, 6, 1,
-        1, 0, 7,
+        1, 5, 5,
+        1, 2, 6,
         // bottom plane
-        3, 2, 5,
-        5, 4, 3,
+        4, 3, 0,
+        4, 7, 3,
     };
 
     this->m_CubeVAO.create();
@@ -163,30 +175,40 @@ void Cube::buildBuffers()
     this->glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex),
                                 reinterpret_cast<void*>(offsetof(Vertex, color)));
 
-    this->m_pCubeVB->release();
-
     this->m_pCubeIB = new QOpenGLBuffer(QOpenGLBuffer::IndexBuffer);
     this->m_pCubeIB->create();
     this->m_pCubeIB->setUsagePattern(QOpenGLBuffer::StaticDraw);
     this->m_pCubeIB->bind();
-    this->m_pCubeIB->allocate(cubeIndices, 36 * sizeof(short));
-
-    this->m_pCubeIB->release();
+    this->m_pCubeIB->allocate(cubeIndices, 36 * sizeof(unsigned short));
 
     this->m_CubeVAO.release();
 }
 
-void Cube::manageShaders()
+bool Cube::manageShaders()
 {
     this->m_pColorVS = new QOpenGLShader(QOpenGLShader::Vertex, this);
-    this->m_pColorVS->compileSourceFile(":/shaders/Color.vsh");
+    if(this->m_pColorVS->compileSourceFile(":/shaders/Color.vsh") == false)
+    {
+        qDebug() << "Error compiling Vertex shader!";
+        return false;
+    }
 
     this->m_pColorFS = new QOpenGLShader(QOpenGLShader::Fragment, this);
-    this->m_pColorFS->compileSourceFile(":/shaders/Color.fsh");
+    if(this->m_pColorFS->compileSourceFile(":/shaders/Color.fsh") == false)
+    {
+        qDebug() << "Error compiling Fragment shader!";
+        return false;
+    }
 
     this->m_pColorSP = new QOpenGLShaderProgram(this);
     this->m_pColorSP->create();
     this->m_pColorSP->addShader(this->m_pColorVS);
     this->m_pColorSP->addShader(this->m_pColorFS);
-    this->m_pColorSP->link();
+    if(this->m_pColorSP->link() == false)
+    {
+        qDebug() << "Cannot link the shader program!";
+        return false;
+    }
+
+    return true;
 }

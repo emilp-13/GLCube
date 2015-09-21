@@ -42,7 +42,7 @@ private:
     QMatrix4x4      m_mtxWorldViewProj;
 
     void buildBuffers();
-    void manageShaders();
+    bool manageShaders();
 };
 
 #endif // CUBE_H
